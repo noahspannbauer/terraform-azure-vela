@@ -1,0 +1,78 @@
+version: '3.8'
+
+services:
+
+  database:
+    container_name: vela-database
+    image: postgres:12
+    restart: always
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    env_file:
+      - ./.env.database
+    networks:
+      - vela
+
+  queue:
+    container_name: vela-queue
+    image: redis:latest
+    restart: on-failure
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - vela
+
+  server:
+    container_name: vela-server
+    image: target/vela-server:v0.21.0
+    restart: always
+    ports:
+      - "8080:8080"
+    env_file:
+      - ./.env.server
+    platform: linux/amd64
+    networks:
+      - vela
+    depends_on:
+      - database
+      - queue
+
+  worker:
+    container_name: vela-worker
+    image: target/vela-worker:v0.21.0
+    restart: always
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "5680:80"
+      - "7680:443"
+    env_file:
+      - ./.env.worker
+    platform: linux/amd64
+    networks:
+      - vela
+  
+  ui:
+    container_name: vela-ui
+    image: target/vela-ui:v0.21.0
+    restart: always
+    ports:
+      - "8888:80"
+    env_file:
+      - ./.env.ui
+    platform: linux/amd64
+    networks:
+      - vela
+    depends_on:
+      - server
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  vela:
